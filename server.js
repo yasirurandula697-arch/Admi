@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(cors());
 
 // 1. ⚠️ ඔයාගේ MongoDB සිරාම Link එක මෙතනට දාන්න
-const MONGO_URI = "ඔයාගේ_MONGO_DB_LINK_EKA_METHANATA_DANNA"; 
+const MONGO_URI = "mongodb+srv://yasirurandula84_db_user:0pNOfGly3f6s7lnG@cluster0.giizrso.mongodb.net/?appName=Cluster0"; 
 
 // 2. ⚠️ Cloudinary Dashboard එකෙන් ගත්ත විස්තර (දැන් මේවා නූලටම හරි)
 cloudinary.config({
