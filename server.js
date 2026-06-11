@@ -59,13 +59,11 @@ app.get('/api/admin/items', async (req, res) => {
     res.json(items);
   } catch (err) { res.status(500).json(err); }
 });
-
-// 📸 අලුත් බඩු සමඟ කෙළින්ම ෆොටෝ එකක් Upload කරන Route එක (upload.single('image'))
+// ---- මේ කොටස විතරක් වෙනස් කරන්න මචං ----
 app.post('/api/admin/add', upload.single('image'), async (req, res) => {
   try {
     const productData = req.body;
     
-    // ෆයිල් එකක් අප්ලෝඩ් වෙලා තියෙනවා නම් ඒකේ cloud url එක ගන්නවා
     if (req.file && req.file.path) {
       productData.image = req.file.path;
     } else {
@@ -76,7 +74,11 @@ app.post('/api/admin/add', upload.single('image'), async (req, res) => {
     await newItem.save();
     res.status(201).json({ success: true });
   } catch (err) { 
-    res.status(400).json({ success: false, message: err.message }); 
+    // 🔍 මෙන්න මෙතන මම console.log එකක් දැම්මා සැබෑ Error එක Logs වල ලස්සනට පෙනෙන්න
+    console.error("🔴 ACTUAL UPLOAD ERROR:", JSON.stringify(err, null, 2));
+    console.error(err); // Full stack trace එකත් පෙනෙන්න දාමු
+    
+    res.status(400).json({ success: false, message: err.message || "Unknown server error" }); 
   }
 });
 
