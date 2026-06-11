@@ -10,6 +10,13 @@ app.use(cors());
 // ⚠️ ඔයාගේ MongoDB සිරාම Link එක මෙතනට දාන්න
 const MONGO_URI = "ඔයාගේ_MONGO_DB_LINK_EKA_METHANATA_DANNA"; 
 
+// 2. ⚠️ Cloudinary Dashboard එකෙන් ගත්ත විස්තර මෙතනට දාන්න
+cloudinary.config({
+  cloud_name: 'dzjqsj65m',
+  api_key: '575893172188643',
+  api_secret: 'BY3YItebFWCBWWk0z6b3XuJRzyM' // ඔය උඹ එවපු කෝඩ් එක මෙතනට
+});
+
 mongoose.connect(MONGO_URI)
   .then(() => console.log('Admin Panel connected to Database!'))
   .catch(err => console.error('Database connection error:', err));
