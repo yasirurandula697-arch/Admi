@@ -1,32 +1,44 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ⚠️ ඔයාගේ MongoDB සිරාම Link එක මෙතනට දාන්න
+// 1. ⚠️ ඔයාගේ MongoDB සිරාම Link එක මෙතනට දාන්න
 const MONGO_URI = "ඔයාගේ_MONGO_DB_LINK_EKA_METHANATA_DANNA"; 
 
-// 2. ⚠️ Cloudinary Dashboard එකෙන් ගත්ත විස්තර මෙතනට දාන්න
+// 2. ⚠️ Cloudinary Dashboard එකෙන් ගත්ත විස්තර (දැන් මේවා නූලටම හරි)
 cloudinary.config({
   cloud_name: 'dzjqsj65m',
   api_key: '575893172188643',
-  api_secret: 'BY3YItebFWCBWWk0z6b3XuJRzyM' // ඔය උඹ එවපු කෝඩ් එක මෙතනට
+  api_secret: 'BY3YItebFWCBWWk0z6b3XuJRzyM'
 });
+
+// Image Upload Storage එක සකස් කිරීම
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'rickey_store_products', // Cloudinary එකේ හැදෙන ෆෝල්ඩර් එකේ නම
+    allowed_formats: ['jpg', 'png', 'jpeg', 'webp']
+  },
+});
+const upload = multer({ storage: storage });
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log('Admin Panel connected to Database!'))
   .catch(err => console.error('Database connection error:', err));
 
-// Database Schema (Main සයිට් එකේ එකමයි)
+// Database Schema
 const itemSchema = new mongoose.Schema({
   category: { type: String, required: true },
   title: { type: String, required: true },
   price: { type: Number, required: true },
-  image: { type: String, required: true },
+  image: { type: String, required: true }, // මෙතනට වැටෙන්නේ Cloudinary ලින්ක් එක
   description: String,
   level: Number,
   skins: String,
@@ -40,7 +52,7 @@ const Item = mongoose.model('Item', itemSchema);
 
 // ---- API ROUTES ----
 
-// 1. බඩු ටික Table එකට ගන්න
+// බඩු ටික Table එකට ගන්න එක
 app.get('/api/admin/items', async (req, res) => {
   try {
     const items = await Item.find().sort({ createdAt: -1 });
@@ -48,16 +60,27 @@ app.get('/api/admin/items', async (req, res) => {
   } catch (err) { res.status(500).json(err); }
 });
 
-// 2. අලුත් බඩු ඇතුලත් කරන්න
-app.post('/api/admin/add', async (req, res) => {
+// 📸 අලුත් බඩු සමඟ කෙළින්ම ෆොටෝ එකක් Upload කරන Route එක (upload.single('image'))
+app.post('/api/admin/add', upload.single('image'), async (req, res) => {
   try {
-    const newItem = new Item(req.body);
+    const productData = req.body;
+    
+    // ෆයිල් එකක් අප්ලෝඩ් වෙලා තියෙනවා නම් ඒකේ cloud url එක ගන්නවා
+    if (req.file && req.file.path) {
+      productData.image = req.file.path;
+    } else {
+      return res.status(400).json({ success: false, message: "Please upload an image!" });
+    }
+
+    const newItem = new Item(productData);
     await newItem.save();
     res.status(201).json({ success: true });
-  } catch (err) { res.status(400).json({ success: false, message: err.message }); }
+  } catch (err) { 
+    res.status(400).json({ success: false, message: err.message }); 
+  }
 });
 
-// 3. Status මාරු කරන්න (Available / Sold)
+// Status මාරු කරන්න (Available / Sold)
 app.put('/api/admin/status/:id', async (req, res) => {
   try {
     await Item.findByIdAndUpdate(req.params.id, { status: req.body.status });
@@ -65,7 +88,7 @@ app.put('/api/admin/status/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ success: false }); }
 });
 
-// 4. Delete කරන්න
+// Delete කරන්න
 app.delete('/api/admin/delete/:id', async (req, res) => {
   try {
     await Item.findByIdAndDelete(req.params.id);
@@ -74,7 +97,7 @@ app.delete('/api/admin/delete/:id', async (req, res) => {
 });
 
 
-// ---- ADMIN PANEL UI (HTML & CSS) ----
+// ---- ADMIN PANEL UI ----
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -95,6 +118,7 @@ app.get('/', (req, res) => {
         .form-group { margin-bottom:15px; display:flex; flex-direction:column; }
         label { font-weight:600; margin-bottom:5px; font-size:14px; }
         input, select, textarea { padding:10px; border:1px solid #ced4da; border-radius:6px; font-size:14px; }
+        input[type="file"] { padding:5px; border:none; }
         button { background:#007bff; color:white; border:none; padding:12px; border-radius:6px; font-weight:600; cursor:pointer; transition:all 0.2s; margin-top:10px; }
         button:hover { background:#0056b3; }
         .dynamic-field { display:none; }
@@ -106,6 +130,9 @@ app.get('/', (req, res) => {
         .badge { padding:4px 8px; border-radius:4px; font-size:12px; font-weight:600; }
         .badge-available { background:#e6f4ea; color:#137333; }
         .badge-sold { background:#fce8e6; color:#c5221f; }
+        .btn-submit { display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .spinner { display:none; width: 20px; height: 20px; border: 3px solid #fff; border-bottom-color: transparent; border-radius: 50%; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       </style>
     </head>
     <body>
@@ -124,29 +151,35 @@ app.get('/', (req, res) => {
       <!-- Add Form -->
       <div class="form-box">
         <h3 style="margin-bottom:15px;">Add New Listing</h3>
-        <form id="addListingForm">
+        <form id="addListingForm" enctype="multipart/form-data">
           <div class="form-group"><label>Category</label>
-            <select id="category" onchange="handleCategoryChange()" required>
+            <select id="category" name="category" onchange="handleCategoryChange()" required>
               <option value="freefire">Free Fire Accounts</option>
               <option value="youtube">YouTube Channels</option>
               <option value="tiktok">TikTok Profiles</option>
               <option value="diamonds">💎 Diamond Packs</option>
             </select>
           </div>
-          <div class="form-group"><label>Title</label><input type="text" id="title" required></div>
-          <div class="form-group"><label>Price (LKR)</label><input type="number" id="price" required></div>
-          <div class="form-group"><label>Image URL</label><input type="text" id="image" required></div>
+          <div class="form-group"><label>Title</label><input type="text" id="title" name="title" required></div>
+          <div class="form-group"><label>Price (LKR)</label><input type="number" id="price" name="price" required></div>
+          
+          <!-- 📸 මෙන්න දැන් ලින්ක් බොක්ස් එක වෙනුවට ෆයිල් සිලෙක්ට් කරන බටන් එක තියෙනවා -->
+          <div class="form-group"><label>Upload Account Screenshot/Image</label><input type="file" id="image" name="image" accept="image/*" required></div>
 
           <div id="ff-fields" class="dynamic-field" style="display:block;">
-            <div class="form-group"><label>Level</label><input type="number" id="level"></div>
-            <div class="form-group"><label>Evo Skins</label><input type="text" id="skins"></div>
+            <div class="form-group"><label>Level</label><input type="number" id="level" name="level"></div>
+            <div class="form-group"><label>Evo Skins</label><input type="text" id="skins" name="skins"></div>
           </div>
-          <div id="yt-fields" class="dynamic-field"><div class="form-group"><label>Subscribers</label><input type="text" id="subscribers"></div></div>
-          <div id="tt-fields" class="dynamic-field"><div class="form-group"><label>Followers</label><input type="text" id="followers"></div></div>
-          <div id="dia-fields" class="dynamic-field"><div class="form-group"><label>Diamond Count</label><input type="number" id="diamondCount"></div></div>
+          <div id="yt-fields" class="dynamic-field"><div class="form-group"><label>Subscribers</label><input type="text" id="subscribers" name="subscribers"></div></div>
+          <div id="tt-fields" class="dynamic-field"><div class="form-group"><label>Followers</label><input type="text" id="followers" name="followers"></div></div>
+          <div id="dia-fields" class="dynamic-field"><div class="form-group"><label>Diamond Count</label><input type="number" id="diamondCount" name="diamondCount"></div></div>
 
-          <div class="form-group"><label>Description</label><textarea id="description" rows="2"></textarea></div>
-          <button type="submit">Publish Live</button>
+          <div class="form-group"><label>Description</label><textarea id="description" name="description" rows="2"></textarea></div>
+          
+          <button type="submit" class="btn-submit" id="submitBtn">
+            <span class="spinner" id="btnSpinner"></span>
+            <span id="btnText">Publish Live</span>
+          </button>
         </form>
       </div>
 
@@ -154,13 +187,12 @@ app.get('/', (req, res) => {
       <h3 style="margin-bottom:15px;">Live Listings</h3>
       <table>
         <thead>
-          <tr><th>Title</th><th>Category</th><th>Price</th><th>Status</th><th>Actions</th></tr>
+          <tr><th>Image</th><th>Title</th><th>Category</th><th>Price</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody id="admin-table"></tbody>
       </table>
 
       <script>
-        // 🔐 මෙතනට ඔයාට කැමති රහස් Password එකක් දෙන්න (දැනට 1234 තියෙන්නේ)
         function checkPassword() {
           const pass = document.getElementById('adminPass').value;
           if(pass === "1234") { 
@@ -175,28 +207,57 @@ app.get('/', (req, res) => {
           if(cat) document.getElementById(cat.substring(0,2)+'-fields').style.display = 'block';
         }
 
+        // 🚀 මෙන්න FormData එකෙන් කෙලින්ම ෆොටෝ එක සර්වර් යවන ජාවාස්ක්‍රිප්ට් කෑල්ල
         document.getElementById('addListingForm').addEventListener('submit', async (e) => {
           e.preventDefault();
-          const payload = {
-            category: document.getElementById('category').value,
-            title: document.getElementById('title').value,
-            price: Number(document.getElementById('price').value),
-            image: document.getElementById('image').value,
-            description: document.getElementById('description').value,
-            level: Number(document.getElementById('level').value) || undefined,
-            skins: document.getElementById('skins').value || undefined,
-            subscribers: document.getElementById('subscribers').value || undefined,
-            followers: document.getElementById('followers').value || undefined,
-            diamondCount: Number(document.getElementById('diamondCount').value) || undefined,
-          };
+          
+          const submitBtn = document.getElementById('submitBtn');
+          const spinner = document.getElementById('btnSpinner');
+          const btnText = document.getElementById('btnText');
+          submitBtn.disabled = true;
+          spinner.style.display = 'block';
+          btnText.innerText = "Uploading Image...";
 
-          await fetch('/api/admin/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          document.getElementById('addListingForm').reset();
-          loadItems();
+          const formData = new FormData();
+          formData.append('category', document.getElementById('category').value);
+          formData.append('title', document.getElementById('title').value);
+          formData.append('price', document.getElementById('price').value);
+          formData.append('image', document.getElementById('image').files[0]); // ෆයිල් එක දානවා
+          formData.append('description', document.getElementById('description').value);
+          
+          const cat = document.getElementById('category').value;
+          if(cat === 'freefire') {
+            formData.append('level', document.getElementById('level').value);
+            formData.append('skins', document.getElementById('skins').value);
+          } else if(cat === 'youtube') {
+            formData.append('subscribers', document.getElementById('subscribers').value);
+          } else if(cat === 'tiktok') {
+            formData.append('followers', document.getElementById('followers').value);
+          } else if(cat === 'diamonds') {
+            formData.append('diamondCount', document.getElementById('diamondCount').value);
+          }
+
+          try {
+            const res = await fetch('/api/admin/add', {
+              method: 'POST',
+              body: formData
+            });
+            const data = await res.json();
+            if(data.success) {
+              alert("Product & Image Published successfully!");
+              document.getElementById('addListingForm').reset();
+              handleCategoryChange();
+            } else {
+              alert("Error: " + data.message);
+            }
+          } catch(err) {
+            alert("Upload failed!");
+          } finally {
+            submitBtn.disabled = false;
+            spinner.style.display = 'none';
+            btnText.innerText = "Publish Live";
+            loadItems();
+          }
         });
 
         async function loadItems() {
@@ -212,11 +273,12 @@ app.get('/', (req, res) => {
               : \`<button class="btn-avail" onclick="updateStatus('\${item._id}', 'available')">Mark Available</button>\`;
 
             tr.innerHTML = \`
+              <td><img src="\${item.image}" style="width:50px; height:50px; object-fit:cover; border-radius:6px;"></td>
               <td><strong>\${item.title}</strong></td>
-              <td style="text-transform:uppercase;">\${item.category}</td>
+              <td style="text-transform:uppercase; font-size:12px;">\${item.category}</td>
               <td>LKR \${item.price.toLocaleString()}</td>
               <td>\${statusBadge}</td>
-              <td>\${actionBtn} <button onclick="deleteItem('\${item._id}')" style="background:#6c757d; border:none; color:white; padding:5px 10px; border-radius:4px; cursor:pointer;">Delete</button></td>
+              <td>\${actionBtn} <button onclick="deleteItem('\${item._id}')" style="background:#6c757d; border:none; color:white; padding:5px 10px; border-radius:4px; cursor:pointer; margin-left:5px;">Delete</button></td>
             \`;
             tbody.appendChild(tr);
           });
@@ -232,7 +294,7 @@ app.get('/', (req, res) => {
         }
 
         async function deleteItem(id) {
-          if(confirm("Delete this?")) {
+          if(confirm("Are you sure you want to delete this?")) {
             await fetch('/api/admin/delete/'+id, { method: 'DELETE' });
             loadItems();
           }
