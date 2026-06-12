@@ -15,7 +15,7 @@ const MONGO_URI = process.env.MONGO_URI;
 cloudinary.config({
   cloud_name: 'dzjqsj65m',
   api_key: '575893172188643',
-  api_secret: 'BY3YItebFWCBWWk0z6b3XuJRzyM'
+  api_secret: 'oSU50kZgLCbISIwcokCYIHacpLY'
 });
 
 // 📸 [object Object] එක නැති කරන්න අපි Multer එක Memory Storage එකට මාරු කරනවා
