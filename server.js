@@ -199,7 +199,7 @@ app.get('/', (req, res) => {
           const pass = document.getElementById('adminPass').value;
           if(pass === "1234") { 
             document.getElementById('loginScreen').style.display = 'none';
-            loadItems();
+            setTimeout(loadItems, 500);
           } else { alert("Wrong Password! Try again."); }
         }
 
@@ -240,7 +240,7 @@ app.get('/', (req, res) => {
           }
 
           try {
-            const res = await fetch('/api/admin/add', {
+            const res = await fetch('https://admi-bwd8.onrender.com/api/admin/add', {
               method: 'POST',
               body: formData
             });
@@ -263,7 +263,7 @@ app.get('/', (req, res) => {
         });
 
         async function loadItems() {
-          const res = await fetch('/api/admin/items');
+          const res = await fetch('https://admi-bwd8.onrender.com/api/admin/items');
           const items = await res.json();
           const tbody = document.getElementById('admin-table');
           tbody.innerHTML = '';
