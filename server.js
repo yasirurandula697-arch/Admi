@@ -60,6 +60,7 @@ app.get('/api/admin/items', async (req, res) => {
   } catch (err) { res.status(500).json(err); }
 });
 // ---- මේ කොටස විතරක් වෙනස් කරන්න මචං ----
+// ---- 🛠️ මේ කොටස විතරක් සම්පූර්ණයෙන්ම මකලා පේස්ට් කරන්න මචං ----
 app.post('/api/admin/add', upload.single('image'), async (req, res) => {
   try {
     const productData = req.body;
@@ -74,9 +75,9 @@ app.post('/api/admin/add', upload.single('image'), async (req, res) => {
     await newItem.save();
     res.status(201).json({ success: true });
   } catch (err) { 
-    // 🔍 මෙන්න මෙතන මම console.log එකක් දැම්මා සැබෑ Error එක Logs වල ලස්සනට පෙනෙන්න
-    console.error("🔴 ACTUAL UPLOAD ERROR:", JSON.stringify(err, null, 2));
-    console.error(err); // Full stack trace එකත් පෙනෙන්න දාමු
+    // 🔍 [object Object] වෙනුවට සැබෑ Error එක Render Logs වල ලස්සනට පෙන්වන්න මෙන්න මේ පේළි 2 දැම්මා
+    console.error("🔴 ACTUAL UPLOAD ERROR DETAILS:");
+    console.error(err); // මේකෙන් Full Error Stack එකම text එකක් විදියට logs වල වදිනවා
     
     res.status(400).json({ success: false, message: err.message || "Unknown server error" }); 
   }
