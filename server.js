@@ -3,36 +3,28 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// 1. ⚠️ ඔයාගේ MongoDB සිරාම Link එක මෙතනට දාන්න
+// 1. MongoDB Connection String
 const MONGO_URI = "mongodb+srv://yasirurandula84_db_user:0pNOfGly3f6s7lnG@cluster0.giizrso.mongodb.net/?appName=Cluster0"; 
 
-// 2. ⚠️ Cloudinary Dashboard එකෙන් ගත්ත විස්තර (දැන් මේවා නූලටම හරි)
+// 2. Cloudinary Configuration
 cloudinary.config({
   cloud_name: 'dzjqsj65m',
   api_key: '575893172188643',
   api_secret: 'BY3YItebFWCBWWk0z6b3XuJRzyM'
 });
 
-// Image Upload Storage එක සකස් කිරීම
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'rickey_store_products', // Cloudinary එකේ හැදෙන ෆෝල්ඩර් එකේ නම
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp']
-  },
-});
+// 📸 [object Object] එක නැති කරන්න අපි Multer එක Memory Storage එකට මාරු කරනවා
+const storage = multer.memoryStorage(); 
 const upload = multer({ storage: storage });
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log('Admin Panel connected to Database!'))
   .catch(err => console.error('Database connection error:', err));
-
 // Database Schema
 const itemSchema = new mongoose.Schema({
   category: { type: String, required: true },
@@ -60,26 +52,41 @@ app.get('/api/admin/items', async (req, res) => {
   } catch (err) { res.status(500).json(err); }
 });
 // ---- මේ කොටස විතරක් වෙනස් කරන්න මචං ----
-// ---- 🛠️ මේ කොටස විතරක් සම්පූර්ණයෙන්ම මකලා පේස්ට් කරන්න මචං ----
 app.post('/api/admin/add', upload.single('image'), async (req, res) => {
   try {
     const productData = req.body;
     
-    if (req.file && req.file.path) {
-      productData.image = req.file.path;
-    } else {
+    if (!req.file) {
       return res.status(400).json({ success: false, message: "Please upload an image!" });
     }
+
+    // 🚀 Multer Memory එකෙන් කෙලින්ම Cloudinary එකට Image එක Upload කරන සිරාම ක්‍රමය
+    const uploadToCloudinary = () => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'rickey_store_products' },
+          (error, result) => {
+            if (result) resolve(result);
+            else reject(error);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+    };
+
+    const cloudinaryResult = await uploadToCloudinary();
+    productData.image = cloudinaryResult.secure_url; // 🔗 Cloudinary ලින්ක් එක ගන්නවා
 
     const newItem = new Item(productData);
     await newItem.save();
     res.status(201).json({ success: true });
+
   } catch (err) { 
-    // 🔍 [object Object] වෙනුවට සැබෑ Error එක Render Logs වල ලස්සනට පෙන්වන්න මෙන්න මේ පේළි 2 දැම්මා
-    console.error("🔴 ACTUAL UPLOAD ERROR DETAILS:");
-    console.error(err); // මේකෙන් Full Error Stack එකම text එකක් විදියට logs වල වදිනවා
+    // 🔍 දැන් මොකක් හරි වැරදුණොත් නියම හේතුව අකුරෙන් අකුර ලොග්ස් වල වදිනවාමයි!
+    console.error("🔴 NEW DETAILED UPLOAD ERROR:");
+    console.error(err); 
     
-    res.status(400).json({ success: false, message: err.message || "Unknown server error" }); 
+    res.status(400).json({ success: false, message: err.message || "Server Error" }); 
   }
 });
 
