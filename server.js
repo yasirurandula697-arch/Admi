@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(cors());
 
 // 1. MongoDB Connection String
-const MONGO_URI = "mongodb+srv://yasirurandula84_db_user:0pNOfGly3f6s7lnG@cluster0.giizrso.mongodb.net/?appName=Cluster0"; 
+const MONGO_URI = process.env.MONGO_URI;
 
 // 2. Cloudinary Configuration
 cloudinary.config({
