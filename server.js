@@ -18,25 +18,27 @@ cloudinary.config({
   api_secret: 'oSU50kZgLCbISIwcokCYIHacpLY'
 });
 
-// 📸 [object Object] එක නැති කරන්න අපි Multer එක Memory Storage එකට මාරු කරනවා
+// 📸 Multer Memory Storage Configuration
 const storage = multer.memoryStorage(); 
 const upload = multer({ storage: storage });
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log('Admin Panel connected to Database!'))
   .catch(err => console.error('Database connection error:', err));
-// Database Schema
+
+// 🛠️ Database Schema (isGems field එක Boolean විදිහට එකතු කරා මචං)
 const itemSchema = new mongoose.Schema({
   category: { type: String, required: true },
   title: { type: String, required: true },
   price: { type: Number, required: true },
-  image: { type: String, required: true }, // මෙතනට වැටෙන්නේ Cloudinary ලින්ක් එක
+  image: { type: String, required: true }, 
   description: String,
   level: Number,
   skins: String,
   subscribers: String,
   followers: String,
-  diamondCount: Number,
+  diamondCount: String, // 💡 මෙතන String කරා 'Weekly Lite' වගේ ඒවා සේව් කරන්න පුළුවන් වෙන්න
+  isGems: { type: Boolean, default: false }, // 🔥 [අලුත්ම ෆීක්ස් එක]: Gems ද නැද්ද කියලා මෙතනින් සේව් වෙනවා
   status: { type: String, default: 'available' }
 }, { timestamps: true });
 
@@ -44,14 +46,15 @@ const Item = mongoose.model('Item', itemSchema);
 
 // ---- API ROUTES ----
 
-// බඩු ටික Table එකට ගන්න එක
+// ბඩු ტಿಕ Table එකට ගන්න එක
 app.get('/api/admin/items', async (req, res) => {
   try {
     const items = await Item.find().sort({ createdAt: -1 });
     res.json(items);
   } catch (err) { res.status(500).json(err); }
 });
-// ---- මේ කොටස විතරක් වෙනස් කරන්න මචං ----
+
+// 🚀 අලුත් බඩු ඇතුළත් කරන API එක (isGems එකතු කරලා වෙනස් කරා)
 app.post('/api/admin/add', upload.single('image'), async (req, res) => {
   try {
     const productData = req.body;
@@ -60,7 +63,7 @@ app.post('/api/admin/add', upload.single('image'), async (req, res) => {
       return res.status(400).json({ success: false, message: "Please upload an image!" });
     }
 
-    // 🚀 Multer Memory එකෙන් කෙලින්ම Cloudinary එකට Image එක Upload කරන සිරාම ක්‍රමය
+    // Multer Memory එකෙන් Cloudinary එකට Image එක Upload කරන එක
     const uploadToCloudinary = () => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -75,17 +78,18 @@ app.post('/api/admin/add', upload.single('image'), async (req, res) => {
     };
 
     const cloudinaryResult = await uploadToCloudinary();
-    productData.image = cloudinaryResult.secure_url; // 🔗 Cloudinary ලින්ක් එක ගන්නවා
+    productData.image = cloudinaryResult.secure_url; 
+
+    // 💡 [ආරක්ෂිත වැට]: Front-end එකෙන් එන string true/false එක Boolean (true/false) එකක් බවට හරවනවා
+    productData.isGems = req.body.isGems === 'true';
 
     const newItem = new Item(productData);
     await newItem.save();
     res.status(201).json({ success: true });
 
   } catch (err) { 
-    // 🔍 දැන් මොකක් හරි වැරදුණොත් නියම හේතුව අකුරෙන් අකුර ලොග්ස් වල වදිනවාමයි!
     console.error("🔴 NEW DETAILED UPLOAD ERROR:");
     console.error(err); 
-    
     res.status(400).json({ success: false, message: err.message || "Server Error" }); 
   }
 });
@@ -147,7 +151,6 @@ app.get('/', (req, res) => {
     </head>
     <body>
 
-      <!-- 🔐 Password Security Screen -->
       <div id="loginScreen" class="login-screen">
         <div class="login-box">
           <h3 style="margin-bottom:10px;">Enter Secret Admin Password</h3>
@@ -158,7 +161,6 @@ app.get('/', (req, res) => {
 
       <h2>Rickey Store Private Dashboard</h2>
 
-      <!-- Add Form -->
       <div class="form-box">
         <h3 style="margin-bottom:15px;">Add New Listing</h3>
         <form id="addListingForm" enctype="multipart/form-data">
@@ -167,22 +169,33 @@ app.get('/', (req, res) => {
               <option value="freefire">Free Fire Accounts</option>
               <option value="youtube">YouTube Channels</option>
               <option value="tiktok">TikTok Profiles</option>
-              <option value="diamonds">💎 Diamond Packs</option>
+              <option value="diamonds">💎 Diamond Store (Packs/Memberships)</option>
             </select>
           </div>
+          
           <div class="form-group"><label>Title</label><input type="text" id="title" name="title" required></div>
           <div class="form-group"><label>Price (LKR)</label><input type="number" id="price" name="price" required></div>
-          
-          <!-- 📸 මෙන්න දැන් ලින්ක් බොක්ස් එක වෙනුවට ෆයිල් සිලෙක්ට් කරන බටන් එක තියෙනවා -->
           <div class="form-group"><label>Upload Account Screenshot/Image</label><input type="file" id="image" name="image" accept="image/*" required></div>
 
           <div id="ff-fields" class="dynamic-field" style="display:block;">
             <div class="form-group"><label>Level</label><input type="number" id="level" name="level"></div>
             <div class="form-group"><label>Evo Skins</label><input type="text" id="skins" name="skins"></div>
           </div>
+          
           <div id="yt-fields" class="dynamic-field"><div class="form-group"><label>Subscribers</label><input type="text" id="subscribers" name="subscribers"></div></div>
+          
           <div id="tt-fields" class="dynamic-field"><div class="form-group"><label>Followers</label><input type="text" id="followers" name="followers"></div></div>
-          <div id="dia-fields" class="dynamic-field"><div class="form-group"><label>Diamond Count</label><input type="number" id="diamondCount" name="diamondCount"></div></div>
+          
+          <div id="dia-fields" class="dynamic-field">
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label>Diamond Store Type (ස්ටෝර් එකේ වැටෙන තැන)</label>
+              <select id="isGems" name="isGems">
+                <option value="false">👑 Membership (Weekly / Monthly)</option>
+                <option value="true">💎 Direct Gems Top-Up (Gems Pack)</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Diamond Count / Pack Name (e.g., 110 Gems, Weekly Standard)</label><input type="text" id="diamondCount" name="diamondCount"></div>
+          </div>
 
           <div class="form-group"><label>Description</label><textarea id="description" name="description" rows="2"></textarea></div>
           
@@ -193,7 +206,6 @@ app.get('/', (req, res) => {
         </form>
       </div>
 
-      <!-- Live Manage Table -->
       <h3 style="margin-bottom:15px;">Live Listings</h3>
       <table>
         <thead>
@@ -217,7 +229,6 @@ app.get('/', (req, res) => {
           if(cat) document.getElementById(cat.substring(0,2)+'-fields').style.display = 'block';
         }
 
-        // 🚀 මෙන්න FormData එකෙන් කෙලින්ම ෆොටෝ එක සර්වර් යවන ජාවාස්ක්‍රිප්ට් කෑල්ල
         document.getElementById('addListingForm').addEventListener('submit', async (e) => {
           e.preventDefault();
           
@@ -232,7 +243,7 @@ app.get('/', (req, res) => {
           formData.append('category', document.getElementById('category').value);
           formData.append('title', document.getElementById('title').value);
           formData.append('price', document.getElementById('price').value);
-          formData.append('image', document.getElementById('image').files[0]); // ෆයිල් එක දානවා
+          formData.append('image', document.getElementById('image').files[0]); 
           formData.append('description', document.getElementById('description').value);
           
           const cat = document.getElementById('category').value;
@@ -244,17 +255,19 @@ app.get('/', (req, res) => {
           } else if(cat === 'tiktok') {
             formData.append('followers', document.getElementById('followers').value);
           } else if(cat === 'diamonds') {
+            // 💡 [ප්‍රධානම දත්ත]: Gems ද නැද්ද සහ පැක් විස්තර සර්වර් එකට යවනවා
+            formData.append('isGems', document.getElementById('isGems').value);
             formData.append('diamondCount', document.getElementById('diamondCount').value);
           }
 
           try {
-            const res = await fetch('https://admi-bwd8.onrender.com/api/admin/add', {
+            const res = await fetch('/api/admin/add', {
               method: 'POST',
               body: formData
             });
             const data = await res.json();
             if(data.success) {
-              alert("Product & Image Published successfully!");
+              alert("Product Published successfully!");
               document.getElementById('addListingForm').reset();
               handleCategoryChange();
             } else {
@@ -271,7 +284,7 @@ app.get('/', (req, res) => {
         });
 
         async function loadItems() {
-          const res = await fetch('https://admi-bwd8.onrender.com/api/admin/items');
+          const res = await fetch('/api/admin/items');
           const items = await res.json();
           const tbody = document.getElementById('admin-table');
           tbody.innerHTML = '';
@@ -282,10 +295,16 @@ app.get('/', (req, res) => {
               ? \`<button class="btn-sold" onclick="updateStatus('\${item._id}', 'sold')">Mark Sold</button>\`
               : \`<button class="btn-avail" onclick="updateStatus('\${item._id}', 'available')">Mark Available</button>\`;
 
+            // 💡 Table එකේ පෙන්වද්දී දියමන්ති ස්ටෝ එකේ වර්ගයත් ලස්සනට පේන්න හැදුවා
+            let catText = item.category;
+            if(item.category === 'diamonds') {
+              catText = item.isGems ? "💎 GEMS PACK" : "👑 MEMBERSHIP";
+            }
+
             tr.innerHTML = \`
               <td><img src="\${item.image}" style="width:50px; height:50px; object-fit:cover; border-radius:6px;"></td>
               <td><strong>\${item.title}</strong></td>
-              <td style="text-transform:uppercase; font-size:12px;">\${item.category}</td>
+              <td style="text-transform:uppercase; font-size:12px; font-weight:600;">\${catText}</td>
               <td>LKR \${item.price.toLocaleString()}</td>
               <td>\${statusBadge}</td>
               <td>\${actionBtn} <button onclick="deleteItem('\${item._id}')" style="background:#6c757d; border:none; color:white; padding:5px 10px; border-radius:4px; cursor:pointer; margin-left:5px;">Delete</button></td>
