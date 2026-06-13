@@ -26,7 +26,7 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log('Admin Panel connected to Database!'))
   .catch(err => console.error('Database connection error:', err));
 
-// 🛠️ Database Schema (isGems field එක Boolean විදිහට එකතු කරා මචං)
+// 🛠️ Database Schema
 const itemSchema = new mongoose.Schema({
   category: { type: String, required: true },
   title: { type: String, required: true },
@@ -37,8 +37,8 @@ const itemSchema = new mongoose.Schema({
   skins: String,
   subscribers: String,
   followers: String,
-  diamondCount: String, // 💡 මෙතන String කරා 'Weekly Lite' වගේ ඒවා සේව් කරන්න පුළුවන් වෙන්න
-  isGems: { type: Boolean, default: false }, // 🔥 [අලුත්ම ෆීක්ස් එක]: Gems ද නැද්ද කියලා මෙතනින් සේව් වෙනවා
+  diamondCount: String, 
+  isGems: { type: Boolean, default: false }, 
   status: { type: String, default: 'available' }
 }, { timestamps: true });
 
@@ -46,7 +46,7 @@ const Item = mongoose.model('Item', itemSchema);
 
 // ---- API ROUTES ----
 
-// ბඩු ტಿಕ Table එකට ගන්න එක
+// බඩු ටික Table එකට ගන්න එක
 app.get('/api/admin/items', async (req, res) => {
   try {
     const items = await Item.find().sort({ createdAt: -1 });
@@ -54,7 +54,7 @@ app.get('/api/admin/items', async (req, res) => {
   } catch (err) { res.status(500).json(err); }
 });
 
-// 🚀 අලුත් බඩු ඇතුළත් කරන API එක (isGems එකතු කරලා වෙනස් කරා)
+// 🚀 අලුත් බඩු ඇතුළත් කරන API එක
 app.post('/api/admin/add', upload.single('image'), async (req, res) => {
   try {
     const productData = req.body;
@@ -63,7 +63,6 @@ app.post('/api/admin/add', upload.single('image'), async (req, res) => {
       return res.status(400).json({ success: false, message: "Please upload an image!" });
     }
 
-    // Multer Memory එකෙන් Cloudinary එකට Image එක Upload කරන එක
     const uploadToCloudinary = () => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -80,7 +79,7 @@ app.post('/api/admin/add', upload.single('image'), async (req, res) => {
     const cloudinaryResult = await uploadToCloudinary();
     productData.image = cloudinaryResult.secure_url; 
 
-    // 💡 [ආරක්ෂිත වැට]: Front-end එකෙන් එන string true/false එක Boolean (true/false) එකක් බවට හරවනවා
+    // String true/false එක Boolean එකක් බවට හරවනවා
     productData.isGems = req.body.isGems === 'true';
 
     const newItem = new Item(productData);
@@ -215,6 +214,9 @@ app.get('/', (req, res) => {
       </table>
 
       <script>
+        // 🔗 Render එකේ නියම URL එක මෙතන Variable එකකට ගත්තා මචං ලෙඩ නොවෙන්නම
+        const BASE_URL = 'https://admi-bwd8.onrender.com';
+
         function checkPassword() {
           const pass = document.getElementById('adminPass').value;
           if(pass === "1234") { 
@@ -226,7 +228,16 @@ app.get('/', (req, res) => {
         function handleCategoryChange() {
           document.querySelectorAll('.dynamic-field').forEach(el => el.style.display = 'none');
           const cat = document.getElementById('category').value;
-          if(cat) document.getElementById(cat.substring(0,2)+'-fields').style.display = 'block';
+          
+          if (cat === 'freefire') {
+            document.getElementById('ff-fields').style.display = 'block';
+          } else if (cat === 'youtube') {
+            document.getElementById('yt-fields').style.display = 'block';
+          } else if (cat === 'tiktok') {
+            document.getElementById('tt-fields').style.display = 'block';
+          } else if (cat === 'diamonds') {
+            document.getElementById('dia-fields').style.display = 'block';
+          }
         }
 
         document.getElementById('addListingForm').addEventListener('submit', async (e) => {
@@ -255,13 +266,12 @@ app.get('/', (req, res) => {
           } else if(cat === 'tiktok') {
             formData.append('followers', document.getElementById('followers').value);
           } else if(cat === 'diamonds') {
-            // 💡 [ප්‍රධානම දත්ත]: Gems ද නැද්ද සහ පැක් විස්තර සර්වර් එකට යවනවා
             formData.append('isGems', document.getElementById('isGems').value);
             formData.append('diamondCount', document.getElementById('diamondCount').value);
           }
 
           try {
-            const res = await fetch('/api/admin/add', {
+            const res = await fetch(\`\${BASE_URL}/api/admin/add\`, {
               method: 'POST',
               body: formData
             });
@@ -284,7 +294,7 @@ app.get('/', (req, res) => {
         });
 
         async function loadItems() {
-          const res = await fetch('/api/admin/items');
+          const res = await fetch(\`\${BASE_URL}/api/admin/items\`);
           const items = await res.json();
           const tbody = document.getElementById('admin-table');
           tbody.innerHTML = '';
@@ -295,7 +305,6 @@ app.get('/', (req, res) => {
               ? \`<button class="btn-sold" onclick="updateStatus('\${item._id}', 'sold')">Mark Sold</button>\`
               : \`<button class="btn-avail" onclick="updateStatus('\${item._id}', 'available')">Mark Available</button>\`;
 
-            // 💡 Table එකේ පෙන්වද්දී දියමන්ති ස්ටෝ එකේ වර්ගයත් ලස්සනට පේන්න හැදුවා
             let catText = item.category;
             if(item.category === 'diamonds') {
               catText = item.isGems ? "💎 GEMS PACK" : "👑 MEMBERSHIP";
@@ -314,7 +323,7 @@ app.get('/', (req, res) => {
         }
 
         async function updateStatus(id, stat) {
-          await fetch('/api/admin/status/'+id, {
+          await fetch(\`\${BASE_URL}/api/admin/status/\${id}\`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: stat })
@@ -324,7 +333,7 @@ app.get('/', (req, res) => {
 
         async function deleteItem(id) {
           if(confirm("Are you sure you want to delete this?")) {
-            await fetch('/api/admin/delete/'+id, { method: 'DELETE' });
+            await fetch(\`\${BASE_URL}/api/admin/delete/\${id}\`, { method: 'DELETE' });
             loadItems();
           }
         }
